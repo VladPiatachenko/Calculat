@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Генератор змішаних команд</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; background-color: #f4f7f6; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; text-align: center; }
+        .flex-container { display: flex; gap: 20px; margin-bottom: 20px; }
+        .flex-child { flex: 1; }
+        textarea { width: 100%; height: 150px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; resize: vertical; }
+        label { font-weight: bold; display: block; margin-bottom: 5px; color: #34495e; }
+        .input-group { margin-bottom: 15px; }
+        input[type="number"] { width: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { background-color: #27ae60; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 4px; cursor: pointer; width: 100%; }
+        button:hover { background-color: #219653; }
+        .results { margin-top: 30px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; }
+        .team-card { background: #ecf0f1; border-left: 5px solid #2980b9; padding: 15px; border-radius: 4px; }
+        .team-card h3 { margin-top: 0; color: #2980b9; border-bottom: 1px solid #bdc3c7; padding-bottom: 5px; }
+        .my-student { font-weight: bold; color: #27ae60; }
+        .other-student { color: #7f8c8d; }
+        .warning { color: #c0392b; font-weight: bold; margin-top: 10px; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🎲 Генератор змішаних команд</h1>
+    <p style="text-align: center; color: #7f8c8d;">Розподіл студентів із гарантією того, що ваші студенти будуть у кожній команді мінімум по двоє.</p>
+    
+    <div class="flex-container">
+        <div class="flex-child">
+            <label for="myStudents">Ваші студенти (кожен з нового рядка):</label>
+            <textarea id="myStudents" placeholder="Іван&#10;Марія&#10;Олена"></textarea>
+        </div>
+        <div class="flex-child">
+            <label for="otherStudents">Чужі студенти (кожен з нового рядка):</label>
+            <textarea id="otherStudents" placeholder="Петро&#10;Анна&#10;Дмитро"></textarea>
+        </div>
+    </div>
+    
+    <div class="input-group">
+        <label for="teamCount">Кількість команд:</label>
+        <input type="number" id="teamCount" value="4" min="1">
+    </div>
+    
+    <button onclick="generateTeams()">Розподілити на команди</button>
+    <div id="warningMessage" class="warning"></div>
+    
+    <div class="results" id="teamsOutput"></div>
+</div>
+
+<script>
+function generateTeams() {
+    const myText = document.getElementById('myStudents').value.trim();
+    const otherText = document.getElementById('otherStudents').value.trim();
+    const teamCount = parseInt(document.getElementById('teamCount').value) || 1;
+    
+    const myStudents = myText ? myText.split('\n').map(s => s.trim()).filter(s => s) : [];
+    const otherStudents = otherText ? otherText.split('\n').map(s => s.trim()).filter(s => s) : [];
+    
+    const warningDiv = document.getElementById('warningMessage');
+    warningDiv.style.display = 'none';
+    
+    if (myStudents.length < teamCount * 2) {
+        warningDiv.innerText = `⚠️ Увага: Ваших студентів (${myStudents.length}) замало, щоб у кожній з ${teamCount} команд було мінімум по 2 особи. Потрібно хоча б ${teamCount * 2}.`;
+        warningDiv.style.display = 'block';
+    }
+    
+    // Ініціалізація команд
+    let teams = [];
+    for (let i = 0; i < teamCount; i++) {
+        teams.push({ id: i + 1, members: [] });
+    }
+    
+    // Перемішування масивів
+    const shuffle = array => array.sort(() => Math.random() - 0.5);
+    shuffle(myStudents);
+    shuffle(otherStudents);
+    
+    // 1. Розподіляємо по 2 ВАШИХ студенти в кожну команду
+    let myIndex = 0;
+    for (let i = 0; i < teamCount; i++) {
+        if (myIndex < myStudents.length) teams[i].members.push({ name: myStudents[myIndex++], type: 'my' });
+        if (myIndex < myStudents.length) teams[i].members.push({ name: myStudents[myIndex++], type: 'my' });
+    }
+    
+    // Залишок ваших студентів розподіляємо по одному
+    let currentTeam = 0;
+    while (myIndex < myStudents.length) {
+        teams[currentTeam % teamCount].members.push({ name: myStudents[myIndex++], type: 'my' });
+        currentTeam++;
+    }
+    
+    // 2. Розподіляємо ЧУЖИХ студентів
+    let otherIndex = 0;
+    while (otherIndex < otherStudents.length) {
+        // Знаходимо команду з найменшою кількістю людей, або просто йдемо по колу
+        teams[currentTeam % teamCount].members.push({ name: otherStudents[otherIndex++], type: 'other' });
+        currentTeam++;
+    }
+    
+    // Вивід результатів
+    const output = document.getElementById('teamsOutput');
+    output.innerHTML = '';
+    
+    teams.forEach(team => {
+        let card = document.createElement('div');
+        card.className = 'team-card';
+        
+        let title = document.createElement('h3');
+        title.innerText = `Команда ${team.id}`;
+        card.appendChild(title);
+        
+        let list = document.createElement('ul');
+        list.style.paddingLeft = '20px';
+        
+        team.members.forEach(m => {
+            let item = document.createElement('li');
+            item.className = m.type === 'my' ? 'my-student' : 'other-student';
+            item.innerText = m.name + (m.type === 'my' ? ' ⭐' : '');
+            list.appendChild(item);
+        });
+        
+        card.appendChild(list);
+        output.appendChild(card);
+    });
+}
+</script>
+
+</body>
+</html>
